@@ -120,6 +120,27 @@ def display_shot(shot_data:Series, xg:float=None) -> None:
     xg = round(xg, 3)
     statsbomb_xg = round(shot_data['statsbomb_xg'], 3)
 
+    # Technique / Assist / Body
+    technique:str = 'Normal'
+    technique_map = {'technique_lob':'Lob','technique_halfvolley':'Half Volley','technique_volley':'Volley','technique_other':'Other'}
+    for technique_key in technique_map.keys():
+        if shot_data[technique_key] == 1:
+            technique = technique_map[technique_key]
+
+    assist:str = 'None'
+    assist_map = {'assist_ground':'Ground', 'assist_low':'Low', 'assist_high':'High'}
+    for assist_key in assist_map.keys():
+        if shot_data[assist_key] == 1:
+            assist = assist_map[assist_key]
+
+    body:str = 'Foot'
+    body_map = {'body_head':'Head', 'body_other':'Other'}
+    for body_key in body_map.keys():
+        if shot_data[body_key] == 1:
+            body = body_map[body_key]
+
+    metrics = 'xG: {}\nStatsbomb xG: {}\n\nAssist: {}\nBody Part: {}\nTechnique: {}'.format(xg, statsbomb_xg, assist, body, technique)
+
     # [x, y] or lists of [x, y]
     shot_location:list[float] = shot_data['shot_location']
     keeper_location:list[float] = shot_data['keeper_location']
@@ -139,7 +160,8 @@ def display_shot(shot_data:Series, xg:float=None) -> None:
 
     plt.figure(figsize=(12, 8))
     plt.imshow(pitch_image, extent=(0., 120., 0., 80.))
-    plt.title('My xG: {}, Statsbomb xG: {}'.format(xg, statsbomb_xg))
+    #plt.title('My xG: {}, Statsbomb xG: {}'.format(xg, statsbomb_xg))
+    plt.text(125, 50, metrics, fontsize=20)
     plt.scatter(shot_x, shot_y, color='lime', label='Shot')
     plt.scatter(keeper_x, keeper_y, color='orange', label='GK')
     plt.scatter(team_x, team_y, color='blue', label='Team')
@@ -165,13 +187,13 @@ def analyse_shot(model:LogisticRegression, calibrator:IsotonicRegression, shot_d
 
     return xg
 
-def predict_n_samples(n:int, test:DataFrame):
+def predict_n_samples(n:int, test:DataFrame) -> None:
     test_sample_indexes = np.random.randint(0, len(test), size=n)
     for index in test_sample_indexes:
         shot = test.iloc[index:index+1]
         analyse_shot(uncalibrated_model, calibrator, shot, True)
 
-predict_n_samples(100, test)
+predict_n_samples(5, test)
 
 test_probabilities_uncalibrated:ndarray = uncalibrated_model.predict_proba(test_X_scaled)[:,1]
 test_probabilities_calibrated:ndarray = calibrator.transform(test_probabilities_uncalibrated)
@@ -185,7 +207,8 @@ statsbomb_brier:float = brier_score_loss(test_y, statsbomb_probabilities)
 no_skill_predicted:ndarray = np.zeros((test_y.shape))
 no_skill_brier:float = brier_score_loss(test_y, no_skill_predicted)
 
-print('Uncalibrated Brier Score: {}'.format(round(test_brier_uncalibrated,3)))
-print('Calibrated Brier Score: {}'.format(round(test_brier,3)))
-print('Statsbomb Brier Score: {}'.format(round(statsbomb_brier,3)))
-print('No Skill: {}'.format(round(no_skill_brier,3)))
+print('Brier Scores:')
+print('Uncalibrated {}'.format(round(test_brier_uncalibrated,3)))
+print('Calibrated {}'.format(round(test_brier,3)))
+print('Statsbomb {}'.format(round(statsbomb_brier,3)))
+print('No Skill {}'.format(round(no_skill_brier,3)))
